@@ -8,18 +8,19 @@ def cli():
     pass
 
 # Period definitions with their corresponding number of occurrences per year
+# For adverbial forms (ending with "ly")
 PERIOD_DEFINITIONS = {
     'yearly': 1,
-    'year': 1,
     'annually': 1,
+    'year': 1,
     'monthly': 12,
-    'month': 12,
+    'month': 1,
     'weekly': 52,
-    'week': 52,
+    'week': 1,
     'daily': 365,
-    'day': 365,
+    'day': 1,
     'hourly': 8760,
-    'hour': 8760
+    'hour': 1
 }
 
 # Textual number mappings (for patterns like "twice a day", "three times a week")
@@ -55,30 +56,52 @@ def parse_period(period_str):
             rf'{text_num}\s*a\s*(\w+)',
             rf'{text_num}\s*per\s*(\w+)', 
             rf'{text_num}\s*times?\s*a\s*(\w+)',
-            rf'{text_num}\s*times?\s*per\s*(\w+)'
+            rf'{text_num}\s*times?\s*per\s*(\w+)',
+            rf'{text_num}\s*(\w+ly)'  # Added pattern for "twice daily"
         ]
         
         for pattern in patterns:
             match = re.search(pattern, period_str)
             if match:
                 base_period = match.group(1)
-                if base_period in PERIOD_DEFINITIONS:
-                    base_periods_per_year = PERIOD_DEFINITIONS[base_period]
-                    periods_per_year = num * base_periods_per_year
-                    return num, base_period, periods_per_year
-                # Also check if base period is in plural form
-                if base_period + 'ly' in PERIOD_DEFINITIONS:
-                    base_period = base_period + 'ly'
-                    base_periods_per_year = PERIOD_DEFINITIONS[base_period]
-                    periods_per_year = num * base_periods_per_year
-                    return num, base_period, periods_per_year
+                
+                if base_period.endswith('ly'):  # Adverb form (daily, weekly, etc.)
+                    if base_period in PERIOD_DEFINITIONS:
+                        base_periods_per_year = PERIOD_DEFINITIONS[base_period]
+                        periods_per_year = num * base_periods_per_year
+                        return num, base_period, periods_per_year
+                else:  # Noun form (day, week, month, etc.)
+                    # For nouns like "day", we need to get the "daily" definition (periods per year)
+                    if base_period + 'ly' in PERIOD_DEFINITIONS:
+                        adverb_period = base_period + 'ly'
+                        base_periods_per_year = PERIOD_DEFINITIONS[adverb_period]
+                        periods_per_year = num * base_periods_per_year
+                        return num, base_period, periods_per_year
+                    elif base_period in PERIOD_DEFINITIONS:
+                        # If noun is in PERIOD_DEFINITIONS, handle special cases
+                        if base_period == 'year':
+                            return num, 'year', num * 1
+                        if base_period == 'month':
+                            return num, 'month', num * 12
+                        if base_period == 'week':
+                            return num, 'week', num * 52
+                        if base_period == 'day':
+                            return num, 'day', num * 365
+                        if base_period == 'hour':
+                            return num, 'hour', num * 8760
+                        
+                        # For other cases, use the definition directly
+                        base_periods_per_year = PERIOD_DEFINITIONS[base_period]
+                        periods_per_year = num * base_periods_per_year
+                        return num, base_period, periods_per_year
     
     # Then, handle numeric frequency patterns
     numeric_patterns = [
         r'(\d+)\s*a\s*(\w+)',
         r'(\d+)\s*per\s*(\w+)',
         r'(\d+)\s*times?\s*a\s*(\w+)',
-        r'(\d+)\s*times?\s*per\s*(\w+)'
+        r'(\d+)\s*times?\s*per\s*(\w+)',
+        r'(\d+)\s*(\w+ly)'  # Added pattern for "2 daily"
     ]
     
     for pattern in numeric_patterns:
@@ -87,20 +110,41 @@ def parse_period(period_str):
             frequency = int(match.group(1))
             base_period = match.group(2)
             
-            if base_period in PERIOD_DEFINITIONS:
-                base_periods_per_year = PERIOD_DEFINITIONS[base_period]
-                periods_per_year = frequency * base_periods_per_year
-                return frequency, base_period, periods_per_year
+            if base_period.endswith('ly'):  # Adverb form (daily, weekly, etc.)
+                if base_period in PERIOD_DEFINITIONS:
+                    base_periods_per_year = PERIOD_DEFINITIONS[base_period]
+                    periods_per_year = frequency * base_periods_per_year
+                    return frequency, base_period, periods_per_year
+            else:  # Noun form (day, week, month, etc.)
+                # For nouns like "day", we need to calculate periods per year correctly
+                if base_period == 'year':
+                    return frequency, 'year', frequency * 1
+                if base_period == 'month':
+                    return frequency, 'month', frequency * 12
+                if base_period == 'week':
+                    return frequency, 'week', frequency * 52
+                if base_period == 'day':
+                    return frequency, 'day', frequency * 365
+                if base_period == 'hour':
+                    return frequency, 'hour', frequency * 8760
                 
-            if base_period + 'ly' in PERIOD_DEFINITIONS:
-                base_period = base_period + 'ly'
-                base_periods_per_year = PERIOD_DEFINITIONS[base_period]
-                periods_per_year = frequency * base_periods_per_year
-                return frequency, base_period, periods_per_year
+                if base_period + 'ly' in PERIOD_DEFINITIONS:
+                    adverb_period = base_period + 'ly'
+                    base_periods_per_year = PERIOD_DEFINITIONS[adverb_period]
+                    periods_per_year = frequency * base_periods_per_year
+                    return frequency, base_period, periods_per_year
+                elif base_period in PERIOD_DEFINITIONS:
+                    base_periods_per_year = PERIOD_DEFINITIONS[base_period]
+                    periods_per_year = frequency * base_periods_per_year
+                    return frequency, base_period, periods_per_year
     
     # Handle simple period types (daily, monthly, etc.)
     if period_str in PERIOD_DEFINITIONS:
         return 1, period_str, PERIOD_DEFINITIONS[period_str]
+    # Handle simple noun forms (day, week, etc.)
+    if period_str + 'ly' in PERIOD_DEFINITIONS:
+        adverb_period = period_str + 'ly'
+        return 1, adverb_period, PERIOD_DEFINITIONS[adverb_period]
     
     raise ValueError(f"Unknown period: {period_str}")
 
@@ -144,7 +188,14 @@ def estimate(initial, gain, period, increments):
 
     # ── Calculation ────────────────────────────────────────────────────
     rate = gain / 100.0
-    multiplier = (1 + rate) ** increments
+    
+    # For multi-frequency periods (e.g., "twice a day"), multiply increments by frequency
+    # This is what users intuitively expect - 4 increments of "twice a day" means 8 occurrences
+    actual_increments = increments * frequency
+    if frequency > 1:
+        click.echo(f"  Note: {increments} increments of {period} = {actual_increments} total occurrences")
+    
+    multiplier = (1 + rate) ** actual_increments
     final_amount = initial * multiplier
     profit = final_amount - initial
     profit_pct = (profit / initial) * 100 if initial != 0 else 0
