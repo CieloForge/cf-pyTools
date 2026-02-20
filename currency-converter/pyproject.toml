@@ -1,0 +1,13 @@
+[project]
+name = "currency"
+version = "0.1.0"
+description = "Simple CLI Currency Converter"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "click>=8.3.1",
+    "requests>=2.32.5",
+    "rich>=14.3.3",
+]
+[project.scripts]
+currency = "currency.__main__:convert"
